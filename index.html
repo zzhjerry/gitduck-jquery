@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Gitduck jQuery</title>
+  <link rel="stylesheet" href="http://www.w3schools.com/lib/w3.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
+</head>
+  <body>
+  <div>
+
+    <!--Top navigation bar-->
+    <div class="w3-container" style="margin-top:3px" area="navbar">
+
+    </div>
+    <!--Top navigation bar-->
+
+    <!--Main area of the dashbaord-->
+    <div ng-controller="MainController">
+      <div area="row" class="w3-row">
+
+      </div>
+    </div>
+    <!--Main area of the dashbaord-->
+
+    <!--Area of modal-->
+    <div ng-controller="ModalController">
+      <div id="modal" class="w3-modal">
+        <div style="width:30%" class="w3-modal-content w3-round-xlarge">
+          <header class="w3-container w3-border-bottom w3-border-red"><span ng-click="closeModal()" class="w3-closebtn">x</span><h2>{{ issue.title }}</h2></header>
+          <div class="w3-container">
+            <p>{{ issue.body }}</p>
+          </div>
+          <footer class="w3-container w3-border-top w3-border-red">
+            <p class="w3-right">Working by {{ issue.assignee.login }}</p>
+          </footer>
+        </div>
+      </div>
+    </div>
+    <!--Area of modal-->
+
+  </div>
+
+  <template id="title">
+      <button style="margin:10px" ng-repeat="title in projectTitles" class="w3-btn w3-round-xxlarge w3-blue">{{ title }}</button>
+  </template>
+
+  <template id="column">
+    <div area="column" class="w3-col l3 w3-border w3-round-xxlarge w3-grey w3-container w3-hover-shadow">
+      <!--List header-->
+      <h5 area="milestone-title" class="w3-container w3-center">{{ key }}</h5>
+      <!--List header-->
+    </div>
+  </template>
+
+  <template id="card">
+    <div area="card" style="margin:10px 0" class="w3-container w3-hover-white w3-card-2 w3-round-xlarge w3-light-grey" ng-repeat="issue in value">
+      <b><p area="issue-title">{{ issue.title }}</p></b>
+      <a area="issue-description" style="text-decoration: none" class="w3-container" ng-click="showModal(issue)">{{ issue.body }}
+        <span area="issue-assignee" class="w3-tag w3-right w3-small w3-blue">{{ issue.assignee.login }}</span>
+        </a>
+    </div>
+  </template>
+
+  <script>
+
+    $.template = function(id) {
+      return $($(id).html())
+    };
+
+    $.slugify = function(text) {
+      return text.toString().toLowerCase()
+        .replace(/\s+/g, '-')           // Replace spaces with -
+        .replace(/[^\w\-]+/g, '')       // Remove all non-word chars
+        .replace(/\-\-+/g, '-')         // Replace multiple - with single -
+        .replace(/^-+/, '')             // Trim - from start of text
+        .replace(/-+$/, '');            // Trim - from end of text
+    }
+
+    var views = {
+      navbarView: $('div[area=navbar]'),
+      rowView: $('div[area=row]'),
+      columnView: $('div[area=column]'),
+    }
+
+    function Gitduck(options) {
+      this.title = options.title;
+      this.requestEndpoint = options.requestEndpoint;
+      this.milestoneWhiteList = options.milestoneWhiteList;
+    };
+
+    Gitduck.prototype = {
+
+      renderTitle: function() {
+        var title = $.template('#title').text(this.title);
+        title.appendTo(views.navbarView);
+      },
+
+      renderMilestoneLists: function() {
+        this.milestoneWhiteList.forEach(function(title) {
+          console.log(title);
+          var template = $.template("#column");
+          template.find("*[area='milestone-title']").text(title);
+          template.attr("id", $.slugify(title)).appendTo(views.rowView);
+        })
+      },
+
+      getUrl: function() {
+        var root = 'https://api.github.com/repos/';
+        var repoName = this.requestEndpoint.repoName;
+        var topic = this.requestEndpoint.topic;
+        var params = $.param(this.requestEndpoint.params);
+        var url = root + repoName + '/' + topic + '?' + params;
+        console.log(url);
+        return url
+      },
+
+      getIssueViewByData: function(issue) {
+        var template = $.template('#card');
+        template.find("*[area='issue-title']").text(issue.title);
+        template.find("*[area='issue-description']").text(issue.body);
+        console.log(template);
+        return template
+      },
+
+      generate:  function(data) {
+        console.log(data);
+        var self = this;
+        data.forEach(function(issue) {
+          console.log(issue.milestone && issue.milestone.title);
+          if (issue.milestone) {
+            var milestoneTitle = issue.milestone.title;
+            if (self.milestoneWhiteList.indexOf(milestoneTitle) != -1) {
+              var columnId = $.slugify(milestoneTitle);
+              var container = $('#' + columnId);
+              var issueCardView = self.getIssueViewByData(issue);
+              issueCardView.appendTo(container);
+            }
+          }
+          else {
+            var columnId = $.slugify("No Milestone");
+            var container = $('#' + columnId);
+            var issueCardView = self.getIssueViewByData(issue);
+            issueCardView.appendTo(container);
+          }
+        })
+      },
+    };
+
+    var app = new Gitduck({
+      title: "Project Lorem",
+      requestEndpoint: {
+        repoName: 'zzhjerry/gitduck',
+        topic: 'issues',
+        params: {
+          state: 'open',
+          label: 'project-lorem'
+        }
+      },
+      milestoneWhiteList: [
+        'No Milestone',
+        'To-Do',
+        'Doing',
+        'In Review'
+      ],
+    });
+
+    app.renderTitle();
+    app.renderMilestoneLists();
+    $.getJSON(app.getUrl()).success(function(data) {
+      app.generate(data);
+    })
+
+  </script>
+
+</body>
+</html>
